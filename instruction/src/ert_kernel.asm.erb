@@ -1,0 +1,102 @@
+//L0:
+//(W)      mov (8|M0)               r2.0<1>:ud    r0.0<1;1,0>:ud                  
+//(W)      or (1|M0)                cr0.0<1>:ud   cr0.0<0;1,0>:ud   0x4C0:uw         {Switch}
+
+
+L0:
+(W)      mov (8|M0)               r7.0<1>:ud    r0.0<1;1,0>:ud                  
+(W)      or (1|M0)                cr0.0<1>:ud   cr0.0<0;1,0>:ud   0x4C0:uw         {Switch}
+(W)      mov (1|M0)               r10.1<1>:f    2.0:f    
+//mad (16|M0)              r91.0<1>:f    r10.1<0;0>:f      r87.0<2;1>:f      r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r93.0<1>:f    r10.1<0;0>:f      r89.0<2;1>:f      r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r95.0<1>:f    r10.1<0;0>:f      r91.0<2;1>:f      r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r97.0<1>:f    r10.1<0;0>:f      r93.0<2;1>:f      r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r99.0<1>:f    r10.1<0;0>:f      r95.0<2;1>:f      r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r101.0<1>:f   r10.1<0;0>:f      r97.0<2;1>:f      r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r103.0<1>:f   r10.1<0;0>:f      r99.0<2;1>:f      r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r105.0<1>:f   r10.1<0;0>:f      r101.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r107.0<1>:f   r10.1<0;0>:f      r103.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r109.0<1>:f   r10.1<0;0>:f      r105.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r111.0<1>:f   r10.1<0;0>:f      r107.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r113.0<1>:f   r10.1<0;0>:f      r109.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r115.0<1>:f   r10.1<0;0>:f      r111.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r117.0<1>:f   r10.1<0;0>:f      r113.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r119.0<1>:f   r10.1<0;0>:f      r115.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r121.0<1>:f   r10.1<0;0>:f      r117.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r123.0<1>:f   r10.1<0;0>:f      r119.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r125.0<1>:f   r10.1<0;0>:f      r121.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r89.0<1>:f    r10.1<0;0>:f      r123.0<2;1>:f     r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r91.0<1>:f    r10.1<0;0>:f      r125.0<2;1>:f     r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r93.0<1>:f    r10.1<0;0>:f      r89.0<2;1>:f      r14.0<1>:f       {Compacted} 
+//mad (16|M16)             r95.0<1>:f    r10.1<0;0>:f      r91.0<2;1>:f      r16.0<1>:f       {Compacted} 
+//mad (16|M0)              r97.0<1>:f    r10.1<0;0>:f      r93.0<2;1>:f      r14.0<1>:f       {Compacted} 
+
+//<% (0..(@inst_o.n_register_input-1)*@grb_inst).step(@grb_inst) do |i| -%>
+//         mov (<%= @simd_size %>|M0) r<%=3 + i %>.0<1>:<%=@datatype%> <%="1.0:#{@datatype}"%>
+<% end -%>
+<%- if @n_outer > 1 -%>
+         mov (1|M0)  acc0.0<1>:d  <%=@n_outer%>:d
+<% end -%>   
+ 
+L1:
+mov (1|M0)               r14.0<1>:f    2.0:f
+mov (1|M0)               r16.0<1>:f    4.0:f
+add (16|M0)              r87.0<1>:f    r14.0<8;8,1>:f    2.0:f           
+add (16|M16)             r89.0<1>:f    r16.0<8;8,1>:f    2.0:f           
+<%- 
+n,s = case @mode
+  when "independent"
+     [@inst_o.n_register, @inst_o.n_register]
+  when "RAR"
+     [1, 1]
+  when "RAW"
+     [1, @n_dep]
+end
+l_inner = (0..(@n_inner-1)*@grb_inst*n).step(@grb_inst*s)
+count = 0
+dest_range = 89..125
+dest_array = dest_range.step(2).to_a()
+dest_idx = 1
+past2 = 87
+past1 = 89
+-%>
+
+<%-
+#l_inner.map{ |i|
+  case @mode
+  when "independent"
+    #inst_lines [ i,i+1*@grb_inst, i+2*@grb_inst, i+3*@grb_inst].map{ |i| modoff(i) }
+  when "RAR"
+    #inst_lines [ modoff(i), 3, 3+@grb_inst, 3+2*@grb_inst]
+  when "RAW"
+    while (count < @n_inner) do
+      if count.even? then%>
+<%=     inst_lines(0, [dest_array[dest_idx], 10, past2, 14]) %>
+<%         
+        past2 = past1
+        past1 = dest_array[dest_idx]
+        dest_idx += 1
+      else %>
+<%=     inst_lines(16, [dest_array[dest_idx], 10, past2, 16]) %>
+<%              
+        past2 = past1
+        past1 = dest_array[dest_idx]
+        dest_idx += 1
+       end
+       if (dest_idx > 18) then
+         dest_idx = 0
+       end
+       count += 1
+    end
+  end
+#}.flatten.join("\n")
+-%>
+
+<%- if @n_outer > 1 -%>
+         add (1|M0) (ne)f0.0     acc0.0<1>:d   acc0.0<0;1,0>:d   -1:d
+         (f0.0)  while (1|M0)  L1
+<%- end -%>
+
+L2:
+(W)      mov (8|M0)               r127.0<1>:ud  r2.0<8;8,1>:ud                   {Compacted}
+(W)      send (8|M0)              null     r127    0x27        0x2000010  {EOT} // wr:1, rd:0; spawner: end of thread

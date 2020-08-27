@@ -68,7 +68,7 @@ $queue = $context.create_command_queue($dev, :properties => [ OpenCL::CommandQue
 # | |_| | | (_  |_ | (_) | | _> 
 #                               
 class DataDependency 
-    @@suported_flavor =  ["RAR","RAW", "independent"]
+    @@suported_flavor =  ["RAR","RAW","ERT_RAW","ZE_RAW", "independent"]
 
     def initialize(raw)
         @raw = raw
@@ -155,12 +155,23 @@ class KernelFactory
    end
 
    def inst_lines(l_idx)
-     # A lot to bigest in the next line
+     # A lot to digest in the next line
      # inst_o.pattern is a the regioning need for the instruction:
      #     For example (.0<1>f for the output, or .0<2;2,1> for input)
      # We zip this regioning with the list of register we want to use
      # Then we print the final register r3.0<2;2,1> for example
-     "#{@inst} (#{@simd_size}|M0) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ')
+     "#{@inst} (#{@simd_size}|M0) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ') + "       {Compacted}"
+   end 
+
+   def inst_lines_offset(offset, l_idx)
+     # A lot to digest in the next line
+     # inst_o.pattern is a the regioning need for the instruction:
+     #     For example (.0<1>f for the output, or .0<2;2,1> for input)
+     # We zip this regioning with the list of register we want to use
+     # Then we print the final register r3.0<2;2,1> for example
+     # This version adds an offset for SIMD-16 use mainly
+     #"#{@inst} (#{@simd_size}|M#{offset}) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ') + "       {Compacted}"
+     "#{@inst} (16|M#{offset}) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ') + "       {Compacted}"
    end 
 
    def template_rendered
@@ -173,6 +184,7 @@ class KernelFactory
       $logger.info("n_det: #{@n_dep}")
 
       template_path="#{__dir__}/kernel.asm.erb"
+      #template_path="#{__dir__}/ze_kernel.asm.erb"
       template = File.read(template_path)
       rendered =  ERB.new(template,nil, '-').result(binding)
 

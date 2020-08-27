@@ -3,7 +3,7 @@ require_relative  'src/lib'
 require 'terminal-table'
 
 #                
-# |\/|  _. o ._  
+# |\/|  _. o ._  - peak edition 
 # |  | (_| | | | 
 #
 
@@ -51,5 +51,16 @@ rows = mode_l.product(l_inst, l_datatype, simd_size_l, n_global_l, n_outer_l, n_
    [inst, datatype, mode, simd_size, n_global, n_outer, n_inner, nthreads, "%10.3E" % flops, ninst, t, ns_to_clk(t), (flops.to_f/t).round(2), (ns_to_clk(t).to_f*neu/ninst).round(3), (ninst*simd_size/(neu*ns_to_clk(t).to_f)).round(3) ] 
 }
 
-table = Terminal::Table.new  :headings =>  ['inst','T', 'mode', 'simd', 'global WG', 'outer','inner','threads', 'flops', "v.inst (#)", 'time (ns)', 'time (cycle)', 'GLOPS/s',"cycle/v.inst/EU","s.inst/cycle/EU"], :rows => rows
+#puts rows[0]
+best_row = 0 
+best_flops = 0
+rows.each_with_index { |val, index| 
+  if val[12].to_f > best_flops then
+    best_flops = val[12].to_f
+    best_row = index
+  end
+}
+single_row = [rows[best_row]]
+
+table = Terminal::Table.new  :headings =>  ['inst','T', 'mode', 'simd', 'global WG', 'outer','inner','threads', 'flops', "v.inst (#)", 'time (ns)', 'time (cycle)', 'GLOPS/s',"cycle/v.inst/EU","s.inst/cycle/EU"], :rows => single_row
 puts table

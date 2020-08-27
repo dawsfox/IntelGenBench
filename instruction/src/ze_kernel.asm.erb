@@ -1,0 +1,165 @@
+//L0:
+//(W)      mov (8|M0)               r2.0<1>:ud    r0.0<1;1,0>:ud                  
+//(W)      or (1|M0)                cr0.0<1>:ud   cr0.0<0;1,0>:ud   0x4C0:uw         {Switch}
+
+
+L0:
+
+(W)     mov (8|M0)               r3.0<1>:ud    r0.0<1;1,0>:ud                   //:%0
+(W)     or (1|M0)                cr0.0<1>:ud   cr0.0<0;1,0>:ud   0x4C0:uw              {Switch} //$1:&1:%16
+(W)     mov (1|M0)               r64.0<1>:uq   r8.0<0;1,0>:uq                   //$2:&2:%32
+        mov (16|M0)              r4.0<1>:f     r1.0<16;16,1>:uw                 //$4:&4:%48
+        mov (16|M16)             r10.0<1>:f    r2.0<16;16,1>:uw                 //$5:&5:%64
+(W)     send (1|M0)              r65      r64:uq  0xC            0x041401FF           // wr:2+0, rd:1; hdc.dc1; a64 dword gathering read //$3:&3:%80
+
+//<% (0..(@inst_o.n_register_input-1)*@grb_inst).step(@grb_inst) do |i| -%>
+//         mov (<%= @simd_size %>|M0) r<%=3 + i %>.0<1>:<%=@datatype%> <%="1.0:#{@datatype}"%>
+<% end -%>
+<%- if @n_outer > 1 -%>
+         mov (1|M0)  acc0.0<1>:d  <%=@n_outer%>:d
+<% end -%>   
+ 
+L1:
+<%- 
+n,s = case @mode
+  when "independent"
+     [@inst_o.n_register, @inst_o.n_register]
+  when "RAR"
+     [1, 1]
+  when "RAW"
+     [1, @n_dep]
+end
+l_inner = (0..(@n_inner-1)*@grb_inst*n).step(@grb_inst*s)
+count = 0
+high_range = 65..125
+high_array = high_range.step(2).to_a()
+high_idx = 1
+low_range = 4..62
+low_array = low_range.step(2).to_a()
+low_idx = 4
+two_past = 0
+two_low = true
+past4 = 0
+past3 = 0
+past2 = 0
+past1 = 0
+-%>
+
+<%-
+#l_inner.map{ |i|
+  case @mode
+  when "independent"
+    #inst_lines [ i,i+1*@grb_inst, i+2*@grb_inst, i+3*@grb_inst].map{ |i| modoff(i) }
+  when "RAR"
+    #inst_lines [ modoff(i), 3, 3+@grb_inst, 3+2*@grb_inst]
+  when "RAW"
+    #(0..(@n_dep-1)*@grb_inst).step(@grb_inst).map do |j|
+    #offset_low = false
+    #offset_high = false
+    while (count < @n_inner) do
+       if count == 0 then -%>
+        mad (16|M0)              r67.0<1>:f    r4.0<2;1>:f       r65.0<0;0>:f      r4.0<1>:f        {Compacted} //$6:&6:%96 {0=EL, 1=OH, 2=EL, BC=GOOD}
+<%-
+         two_past = high_idx
+         two_low = false
+         high_idx += 1
+       elsif count == 1 then %>
+        mad (16|M16)             r69.0<1>:f    r10.0<2;1>:f      r65.0<0;0>:f      r10.0<1>:f       {Compacted} //$7:&7:%104 {0=EL, 1=OH, 2=EL, BC=GOOD}
+<%       high_idx += 1
+         past1 = 69
+         past2 = 67
+       elsif count == 2 then %>
+<%=      inst_lines(0, [low_array[low_idx], past2, past2, low_array[0]]) %>
+<%       past3 = past2
+         past2 = past1
+         past1 = low_array[low_idx]
+         low_idx += 1
+         two_past += 1
+       elsif count == 3 then %>
+<%=      inst_lines(16, [low_array[low_idx], past2, past2, low_array[3]]) %>
+<%       past4 = past3
+         past3 = past2
+         past2 = past1
+         past1 = low_array[low_idx]
+         four_past = 1
+         two_past = 4
+       else 
+         if count % 4 == 0 then %>
+<%=        inst_lines(16, [high_array[high_idx], past2, past2, past4]) %>
+<%         past4 = past3
+           past3 = past2
+           past2 = past1
+           past1 = high_array[high_idx]
+           high_idx += 1
+           two_past += 1
+           four_past += 1
+           if (four_past > 29) then
+             four_past = 0
+           end
+           if (two_past > 29) then
+             two_past = 0
+           end
+         elsif count % 4 == 1 then %>
+<%=        inst_lines(0, [high_array[high_idx], past2, past2, past4]) %>
+<%         past4 = past3
+           past3 = past2
+           past2 = past1
+           past1 = high_array[high_idx]
+           high_idx += 1
+           four_past += 2
+           two_past -= 2
+           if (four_past > 29) then
+             four_past = 0
+           end
+         elsif count % 4 == 2 then %>
+<%=        inst_lines(16, [low_array[low_idx], past2, past2, past4]) %>
+<%         past4 = past3
+           past3 = past2
+           past2 = past1
+           past1 = low_array[low_idx]
+           low_idx += 1
+           two_past += 1
+           four_past += 1
+           if (four_past > 29) then
+             four_past = 0
+           end
+           if (two_past > 29) then
+             two_past = 0
+           end
+         elsif count % 4 == 3 then %>
+<%=        inst_lines(0, [low_array[low_idx], past2, past2, past4]) %>
+<%         past4 = past3
+           past3 = past2
+           past2 = past1
+           past1 = low_array[low_idx]
+           low_idx += 1
+           two_past += 2
+           four_past -= 2
+           if (two_past > 29) then
+             two_past = 0
+           end
+         end
+       end
+       count += 1
+       if (low_idx > 29) then
+         low_idx = 0
+         offset_low = !offset_low
+       end
+       if (high_idx > 30) then
+         high_idx = 0
+         offset_high = !offset_high
+       end
+       #inst_lines [ modoff(i+j), i==0 ? 3 : modoff(i+j-@n_dep*@grb_inst) , 3+@grb_inst, 3+2*@grb_inst]
+    end
+  end
+#}.flatten.join("\n")
+-%>
+
+<%- if @n_outer > 1 -%>
+         add (1|M0) (ne)f0.0     acc0.0<1>:d   acc0.0<0;1,0>:d   -1:d
+         (f0.0)  while (1|M0)  L1
+<%- end -%>
+
+L2:
+(W)      mov (8|M0)               r127.0<1>:ud  r2.0<8;8,1>:ud                   {Compacted}
+(W)      send (8|M0)              null     r127    0x27        0x2000010  {EOT} // wr:1, rd:0; spawner: end of thread
