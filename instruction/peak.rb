@@ -7,7 +7,6 @@ require 'terminal-table'
 # |  | (_| | | | 
 #
 
-#$logger.level = -1 #5  # -1 verbose, to 5 quiet 
 $logger.level = 5 #5  # -1 verbose, to 5 quiet 
 if ARGV.length != 7
     puts "./a.out inst datatype simd_length n_global n_outer n_inner"

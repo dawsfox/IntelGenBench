@@ -171,6 +171,7 @@ class KernelFactory
      # Then we print the final register r3.0<2;2,1> for example
      # This version adds an offset for SIMD-16 use mainly
      #"#{@inst} (#{@simd_size}|M#{offset}) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ') + "       {Compacted}"
+     # hardcodes SIMD16 in so that RAW2 with SIMD-8 can be directly/properly compared with ZE_RAW and ERT_RAW
      "#{@inst} (16|M#{offset}) " + @inst_o.pattern.zip(l_idx).map{|i,j| "r#{j}#{i}:#{@datatype}"}.join(' ') + "       {Compacted}"
    end 
 
